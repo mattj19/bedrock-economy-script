@@ -123,8 +123,7 @@ function initializeShop(player, signBlock, lines, type) {
     const newHeader = type === "shop" ? "§9[Shop]" : "§c[Sell]";
     const niceName = toNiceName(fullItemName); 
     
-    // Added §r before ${amount} to reset the color back to default for the rest of the sign
-    signComp.setText(`\({newHeader}\n§r\){amount}\n\({price}\n\){niceName}`);
+    signComp.setText(newHeader + "\n§r" + amount + "\n" + price + "\n" + niceName);
     world.setDynamicProperty(lockKey, player.name);
 
     player.sendMessage(`§aSuccess! ${type === "shop" ? "Buy" : "Sell"} shop created and chest locked to you.`);
@@ -132,9 +131,11 @@ function initializeShop(player, signBlock, lines, type) {
 }
 
 function processTransaction(player, signBlock, lines, action) {
-    const amount = parseInt(lines[1]);
-    const price = parseInt(lines[2]);
-    const fullItemName = toIdName(lines[3].trim()); 
+    const cleanLines = lines.map(line => line.replace(/§./g, ''));
+    
+    const amount = parseInt(cleanLines[1]);
+    const price = parseInt(cleanLines[2]);
+    const fullItemName = toIdName(cleanLines[3].trim()); 
 
     const chestBlock = signBlock.dimension.getBlock({x: signBlock.x, y: signBlock.y - 1, z: signBlock.z});
     if (!chestBlock) return;
