@@ -1,6 +1,6 @@
 import { world, system, ItemStack } from "@minecraft/server";
 
-const CURRENCY = "minecraft:echo_shard";
+const CURRENCY = "minecraft:amethyst_shard";
 
 world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
     const { block, player } = event;
