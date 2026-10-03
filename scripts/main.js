@@ -105,7 +105,7 @@ function initializeShop(player, signBlock, lines, type) {
         return;
     }
 
-    const lockKey = `shop_lock_${chestBlock.x}_${chestBlock.y}_${chestBlock.z}`;
+    const lockKey = `shop_lock_\({chestBlock.x}_\){chestBlock.y}_${chestBlock.z}`;
     const existingOwner = world.getDynamicProperty(lockKey);
     if (existingOwner && existingOwner !== player.name) {
         player.sendMessage(`§cThis chest is already locked by ${existingOwner}.`);
@@ -123,7 +123,8 @@ function initializeShop(player, signBlock, lines, type) {
     const newHeader = type === "shop" ? "§9[Shop]" : "§c[Sell]";
     const niceName = toNiceName(fullItemName); 
     
-    signComp.setText(`${newHeader}\n${amount}\n${price}\n${niceName}`);
+    // Added §r before ${amount} to reset the color back to default for the rest of the sign
+    signComp.setText(`\({newHeader}\n§r\){amount}\n\({price}\n\){niceName}`);
     world.setDynamicProperty(lockKey, player.name);
 
     player.sendMessage(`§aSuccess! ${type === "shop" ? "Buy" : "Sell"} shop created and chest locked to you.`);
