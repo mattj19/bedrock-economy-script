@@ -1,0 +1,25 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Server Economy",
+    "description": "Echo Shard currency system and player chest shops.",
+    "uuid": "9b8d2a60-7f5e-412e-a3b0-68153c306d11",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 20, 0]
+  },
+  "modules": [
+    {
+      "description": "Economy Scripts",
+      "type": "script",
+      "uuid": "6b8d2a60-7f5e-412e-a3b0-68153c306d22",
+      "version": [1, 0, 0],
+      "entry": "scripts/main.js"
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "1.14.0"
+    }
+  ]
+}
