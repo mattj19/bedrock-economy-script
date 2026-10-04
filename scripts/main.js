@@ -64,7 +64,6 @@ world.afterEvents.playerSpawn.subscribe((event) => {
     }
 });
 
-// 1. Handle Shop & ATM Interactions
 world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
     const { block, player } = event;
     const signComp = block.getComponent("minecraft:sign");
@@ -87,8 +86,9 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
     let text = "";
     try { text = signComp.getText(); } catch (e) { return; }
     
-    const lines = text.split("\n");
-    if (lines.length < 4) return;
+    let lines = text.split("\n");
+    
+    while (lines.length < 4) lines.push(""); 
 
     const header = lines[0].toLowerCase();
     
@@ -119,7 +119,6 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
     }
 });
 
-// 2. Prevent Breaking Locked/Admin Shops & ATMs
 world.beforeEvents.playerBreakBlock.subscribe((event) => {
     const { block, player } = event;
     
@@ -184,7 +183,6 @@ function toIdName(niceName) {
 }
 
 function initializeShop(player, signBlock, lines, type) {
-    // Check if it's a balance sign first
     if (type === "balance") {
         if (!player.hasTag("admin")) {
             player.sendMessage("§cOnly admins can create Balance signs.");
