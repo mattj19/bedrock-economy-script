@@ -12,19 +12,46 @@ function getMoneyObjective() {
 
 function getBalance(playerName) {
     const obj = getMoneyObjective();
-    try {
-        return obj.getScore(playerName) || 0;
-    } catch (e) {
-        return 0;
+    
+    const onlinePlayer = world.getAllPlayers().find(p => p.name === playerName);
+    if (onlinePlayer) {
+        try {
+            const score = obj.getScore(onlinePlayer);
+            if (score !== undefined) return score;
+        } catch (e) {}
     }
+    
+    try {
+        for (const participant of obj.getParticipants()) {
+            if (participant.displayName === playerName) {
+                return obj.getScore(participant) || 0;
+            }
+        }
+    } catch (e) {}
+    
+    return 0;
 }
 
 function setBalance(playerName, amount) {
     const obj = getMoneyObjective();
-    obj.setScore(playerName, amount);
+    
+    const onlinePlayer = world.getAllPlayers().find(p => p.name === playerName);
+    if (onlinePlayer) {
+        try { obj.setScore(onlinePlayer, amount); return; } catch (e) {}
+    }
+    
+    try {
+        for (const participant of obj.getParticipants()) {
+            if (participant.displayName === playerName) {
+                obj.setScore(participant, amount);
+                return;
+            }
+        }
+    } catch (e) {}
+
+    try { obj.setScore(playerName, amount); } catch (e) {}
 }
 
-// Give $500 to new players when they join
 world.afterEvents.playerSpawn.subscribe((event) => {
     if (!event.initialSpawn) return;
     
@@ -37,6 +64,7 @@ world.afterEvents.playerSpawn.subscribe((event) => {
     }
 });
 
+// 1. Handle Shop & ATM Interactions
 world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
     const { block, player } = event;
     const signComp = block.getComponent("minecraft:sign");
@@ -64,8 +92,8 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
 
     const header = lines[0].toLowerCase();
     
-    const validRawHeaders = ["[shop]", "[sell]", "[adminshop]", "[adminsell]"];
-    const isInitializedShop = header.includes("§9[shop]") || header.includes("§c[sell]") || header.includes("§5[adminshop]") || header.includes("§5[adminsell]");
+    const validRawHeaders = ["[shop]", "[sell]", "[adminshop]", "[adminsell]", "[balance]"];
+    const isInitializedShop = header.includes("§9[shop]") || header.includes("§c[sell]") || header.includes("§5[adminshop]") || header.includes("§5[adminsell]") || header.includes("§2[balance]");
     
     if (validRawHeaders.includes(header) || isInitializedShop) {
         event.cancel = true;
@@ -81,10 +109,17 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
             system.run(() => processTransaction(player, block, lines, "adminbuy"));
         } else if (header.includes("§5[adminsell]")) {
             system.run(() => processTransaction(player, block, lines, "adminsell"));
+        } else if (header.includes("§2[balance]")) {
+            system.run(() => {
+                const currentBalance = getBalance(player.name);
+                player.sendMessage("§aYour current balance is: $" + currentBalance);
+                player.playSound("random.orb");
+            });
         }
     }
 });
 
+// 2. Prevent Breaking Locked/Admin Shops & ATMs
 world.beforeEvents.playerBreakBlock.subscribe((event) => {
     const { block, player } = event;
     
@@ -93,11 +128,11 @@ world.beforeEvents.playerBreakBlock.subscribe((event) => {
         if (signComp) {
             let text = "";
             try { text = signComp.getText(); } catch (e) {}
-            if (text.includes("§5[AdminShop]") || text.includes("§5[AdminSell]")) {
+            if (text.includes("§5[AdminShop]") || text.includes("§5[AdminSell]") || text.includes("§2[Balance]")) {
                 if (!player.hasTag("admin")) {
                     event.cancel = true;
                     system.run(() => {
-                        player.sendMessage("§cYou cannot break an Admin Shop.");
+                        player.sendMessage("§cYou cannot break an Admin Sign.");
                         player.playSound("note.bass");
                     });
                     return;
@@ -149,6 +184,20 @@ function toIdName(niceName) {
 }
 
 function initializeShop(player, signBlock, lines, type) {
+    // Check if it's a balance sign first
+    if (type === "balance") {
+        if (!player.hasTag("admin")) {
+            player.sendMessage("§cOnly admins can create Balance signs.");
+            player.playSound("note.bass");
+            return;
+        }
+        const signComp = signBlock.getComponent("minecraft:sign");
+        signComp.setText("§2[Balance]\n\n§8Click to\n§8check funds");
+        player.sendMessage("§aBalance checker sign created.");
+        player.playSound("random.anvil_use");
+        return;
+    }
+
     const amount = parseInt(lines[1]);
     const price = parseInt(lines[2]);
     const fullItemName = toIdName(lines[3].trim()); 
@@ -222,7 +271,6 @@ function processTransaction(player, signBlock, lines, action) {
     const niceName = toNiceName(fullItemName);
     const playerContainer = player.getComponent("minecraft:inventory").container;
 
-    // --- ADMIN SHOP LOGIC ---
     if (action === "adminbuy") {
         const playerBalance = getBalance(player.name);
         if (playerBalance < price) {
@@ -252,7 +300,6 @@ function processTransaction(player, signBlock, lines, action) {
         return;
     }
 
-    // --- NORMAL SHOP LOGIC ---
     const chestBlock = signBlock.dimension.getBlock({x: signBlock.x, y: signBlock.y - 1, z: signBlock.z});
     if (!chestBlock) return;
     
@@ -288,12 +335,10 @@ function processTransaction(player, signBlock, lines, action) {
             return;
         }
         
-        // Transfer funds
         setBalance(player.name, playerBalance - price);
         const ownerBalance = getBalance(owner);
         setBalance(owner, ownerBalance + price);
 
-        // Transfer items
         removeItems(chestContainer, fullItemName, amount);
         playerContainer.addItem(new ItemStack(fullItemName, amount));
         
@@ -315,12 +360,10 @@ function processTransaction(player, signBlock, lines, action) {
             return;
         }
         
-        // Transfer funds
         setBalance(owner, ownerBalance - price);
         const playerBalance = getBalance(player.name);
         setBalance(player.name, playerBalance + price);
 
-        // Transfer items
         removeItems(playerContainer, fullItemName, amount);
         chestContainer.addItem(new ItemStack(fullItemName, amount));
         
